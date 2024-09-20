@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"log"
+	"sync/atomic"
 
 	"github.com/gorilla/mux"
 	"github.com/lennylebedinsky/chatter/internal/chat"
@@ -9,21 +10,23 @@ import (
 )
 
 type Gateway struct {
-	repo domain.Repository
+	router             *mux.Router
+	repo               domain.Repository
+	broadcaster        *chat.Broadcaster
+	broadcasterStarted atomic.Bool
 
-	router *mux.Router
 	logger *log.Logger
-
-	broadcaster *chat.Broadcaster
 }
 
-func New(broadcaster *chat.Broadcaster, repo domain.Repository, logger *log.Logger) *Gateway {
+func New(repo domain.Repository, logger *log.Logger) *Gateway {
 	g := &Gateway{
 		router:      mux.NewRouter(),
-		broadcaster: broadcaster,
 		repo:        repo,
+		broadcaster: chat.NewBroadcaster(repo, logger),
 		logger:      logger,
 	}
+
+	g.broadcasterStarted.Store(false)
 
 	g.registerRoutes()
 
@@ -32,8 +35,4 @@ func New(broadcaster *chat.Broadcaster, repo domain.Repository, logger *log.Logg
 
 func (g *Gateway) Router() *mux.Router {
 	return g.router
-}
-
-func (g *Gateway) Broadcaster() *chat.Broadcaster {
-	return g.broadcaster
 }

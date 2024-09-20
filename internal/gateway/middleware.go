@@ -8,16 +8,26 @@ import (
 	"time"
 )
 
+func (g *Gateway) broadcasterStartMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Lazy starting broadcaster loop when the first request arrives.
+		if g.broadcasterStarted.CompareAndSwap(false, true) {
+			go g.broadcaster.Start()
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
-		logRespWriter := &logResponseWriter{ResponseWriter: w}
-		next.ServeHTTP(logRespWriter, r)
+		writer := &logResponseWriter{ResponseWriter: w}
+		next.ServeHTTP(writer, r)
 
 		g.logger.Printf("%s %s : %d %s",
 			r.Method, r.RequestURI,
-			logRespWriter.statusCode,
+			writer.statusCode,
 			time.Since(startTime).String())
 	})
 }

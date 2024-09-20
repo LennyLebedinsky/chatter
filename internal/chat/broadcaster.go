@@ -28,20 +28,26 @@ func NewBroadcaster(repo domain.Repository, logger *log.Logger) *Broadcaster {
 		repo:       repo,
 		logger:     logger,
 	}
+
 }
 
 // Supposed to be run as goroutine.
 func (b *Broadcaster) Start() {
+	defer func() {
+		b.logger.Println("Message broadcaster stopped.")
+	}()
+
+	b.logger.Println("Message broadcaster started.")
 	for {
 		select {
 		case socket := <-b.register:
 			b.sockets[socket] = true
-			b.logger.Printf("User %s registered with broadcaster.\n", socket.ID())
+			b.logger.Printf("User %s registered with broadcaster.\n", socket.user.Name)
 		case socket := <-b.unregister:
 			if _, ok := b.sockets[socket]; ok {
 				delete(b.sockets, socket)
 				close(socket.Send())
-				b.logger.Printf("User %s unregistered from broadcaster.\n", socket.ID())
+				b.logger.Printf("User %s unregistered from broadcaster.\n", socket.user.Name)
 				if err := b.repo.Unregister(socket.user.Name); err != nil {
 					b.logger.Printf("Error: %v\n", err)
 				}
@@ -69,12 +75,4 @@ func (b *Broadcaster) Start() {
 
 func (b *Broadcaster) Register() chan *UserSocket {
 	return b.register
-}
-
-func (b *Broadcaster) Unregister() chan *UserSocket {
-	return b.unregister
-}
-
-func (b *Broadcaster) Broadcast() chan []byte {
-	return b.message
 }
