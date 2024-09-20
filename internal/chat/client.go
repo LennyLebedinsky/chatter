@@ -7,11 +7,6 @@ import (
 	"github.com/lennylebedinsky/chatter/internal/domain"
 )
 
-type Client interface {
-	ID() string
-	Send() chan []byte
-}
-
 type UserSocket struct {
 	user *domain.User
 	conn *websocket.Conn
@@ -37,30 +32,23 @@ func NewUserSocket(
 	}
 }
 
-func (s *UserSocket) ID() string {
-	if s.user != nil {
-		return s.user.Name
-	}
-
-	return ""
-}
-
 func (s *UserSocket) Send() chan []byte {
 	return s.send
 }
 
+// Supposed to be run as goroutine.
 func (s *UserSocket) ReadLoop() {
 	defer func() {
-		s.broadcaster.Unregister() <- s
+		s.broadcaster.unregister <- s
 		s.conn.Close()
 	}()
 	for {
 		_, _, err := s.conn.ReadMessage()
 		if err != nil {
 			if closeErr, ok := err.(*websocket.CloseError); ok {
-				s.logger.Printf("Connection closed for client %s: %v\n", s.ID(), closeErr)
+				s.logger.Printf("Connection closed for user %s: %v\n", s.user.Name, closeErr)
 			} else {
-				s.logger.Printf("Error reading message for client %s: %v\n", s.ID(), err)
+				s.logger.Printf("Error reading message for user %s: %v\n", s.user.Name, err)
 			}
 			break
 		}
