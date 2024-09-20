@@ -5,20 +5,24 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lennylebedinsky/chatter/internal/chat"
+	"github.com/lennylebedinsky/chatter/internal/domain"
 )
 
 type Gateway struct {
-	repo chat.Repository
+	repo domain.Repository
 
 	router *mux.Router
 	logger *log.Logger
+
+	broadcaster *chat.Broadcaster
 }
 
-func New(logger *log.Logger) *Gateway {
+func New(broadcaster *chat.Broadcaster, repo domain.Repository, logger *log.Logger) *Gateway {
 	g := &Gateway{
-		repo:   chat.NewInMemoryRepository(),
-		router: mux.NewRouter(),
-		logger: logger,
+		router:      mux.NewRouter(),
+		broadcaster: broadcaster,
+		repo:        repo,
+		logger:      logger,
 	}
 
 	g.registerRoutes()
@@ -28,4 +32,8 @@ func New(logger *log.Logger) *Gateway {
 
 func (g *Gateway) Router() *mux.Router {
 	return g.router
+}
+
+func (g *Gateway) Broadcaster() *chat.Broadcaster {
+	return g.broadcaster
 }

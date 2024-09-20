@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -11,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lennylebedinsky/chatter/internal/chat"
+	"github.com/lennylebedinsky/chatter/internal/domain"
 	"github.com/lennylebedinsky/chatter/internal/gateway"
 )
 
@@ -24,25 +25,38 @@ func main() {
 		Host: "localhost",
 		Port: "8080",
 	}
-	gw := gateway.New(log.Default()).Router()
+	logger := log.Default()
+	gw := gateway.New(
+		chat.NewBroadcaster(logger),
+		domain.NewInMemoryRepository(),
+		logger)
 
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort(config.Host, config.Port),
-		Handler: gw,
+		Handler: gw.Router(),
 	}
 
+	//stopBroadcast := make(chan struct{})
+
 	go func() {
-		fmt.Printf("Listening on %s\n", httpServer.Addr)
+		logger.Printf("HTTP server is listening on %s\n", httpServer.Addr+" ...")
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("error listening and serving: %s\n", err)
+			logger.Printf("error listening and serving: %s\n", err)
 		}
+	}()
+
+	go func() {
+		logger.Println("Starting message broadcaster...")
+		gw.Broadcaster().Start()
 	}()
 
 	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 5 seconds.
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	fmt.Println("Shutting server down...")
+	logger.Println("Shutting server down...")
+
+	//close(stopBroadcast)
 
 	// The context is used to inform the server it has 10 seconds to finish
 	// the request it is currently handling.
@@ -50,6 +64,8 @@ func main() {
 	defer cancel()
 
 	if err := httpServer.Shutdown(ctx); err != nil {
-		fmt.Printf("Server forced to shutdown %v\n", err)
+		logger.Printf("HTTP server forced to shutdown %v\n", err)
 	}
+
+	logger.Println("HTTP server had been shut down.")
 }

@@ -1,4 +1,4 @@
-package chat
+package domain
 
 type User struct {
 	Name string
