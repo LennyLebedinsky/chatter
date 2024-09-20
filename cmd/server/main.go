@@ -26,9 +26,10 @@ func main() {
 		Port: "8080",
 	}
 	logger := log.Default()
+	repo := domain.NewInMemoryRepository()
 	gw := gateway.New(
-		chat.NewBroadcaster(logger),
-		domain.NewInMemoryRepository(),
+		chat.NewBroadcaster(repo, logger),
+		repo,
 		logger)
 
 	httpServer := &http.Server{

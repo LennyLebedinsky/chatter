@@ -33,6 +33,8 @@ func (g *Gateway) serveUserWs(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	userSocket := chat.NewUserSocket(user, conn)
+	userSocket := chat.NewUserSocket(user, conn, g.broadcaster, g.logger)
 	g.broadcaster.Register() <- userSocket
+
+	go userSocket.ReadLoop()
 }

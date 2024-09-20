@@ -1,24 +1,31 @@
 package chat
 
-import "log"
+import (
+	"log"
+
+	"github.com/lennylebedinsky/chatter/internal/domain"
+)
 
 type Broadcaster struct {
-	clients map[Client]bool
+	sockets map[*UserSocket]bool
 
-	register   chan Client
-	unregister chan Client
+	register   chan *UserSocket
+	unregister chan *UserSocket
 
 	message chan []byte
+
+	repo domain.Repository
 
 	logger *log.Logger
 }
 
-func NewBroadcaster(logger *log.Logger) *Broadcaster {
+func NewBroadcaster(repo domain.Repository, logger *log.Logger) *Broadcaster {
 	return &Broadcaster{
-		clients:    make(map[Client]bool),
-		register:   make(chan Client),
-		unregister: make(chan Client),
+		sockets:    make(map[*UserSocket]bool),
+		register:   make(chan *UserSocket),
+		unregister: make(chan *UserSocket),
 		message:    make(chan []byte),
+		repo:       repo,
 		logger:     logger,
 	}
 }
@@ -27,22 +34,26 @@ func NewBroadcaster(logger *log.Logger) *Broadcaster {
 func (b *Broadcaster) Start() {
 	for {
 		select {
-		case client := <-b.register:
-			b.clients[client] = true
-			b.logger.Printf("Client %s registered with broadcaster.\n", client.ID())
-		case client := <-b.unregister:
-			if _, ok := b.clients[client]; ok {
-				delete(b.clients, client)
-				close(client.Send())
+		case socket := <-b.register:
+			b.sockets[socket] = true
+			b.logger.Printf("User %s registered with broadcaster.\n", socket.ID())
+		case socket := <-b.unregister:
+			if _, ok := b.sockets[socket]; ok {
+				delete(b.sockets, socket)
+				close(socket.Send())
+				b.logger.Printf("User %s unregistered from broadcaster.\n", socket.ID())
+				if err := b.repo.Unregister(socket.user.Name); err != nil {
+					b.logger.Printf("Error: %v\n", err)
+				}
 			}
 
 		case message := <-b.message:
-			for client := range b.clients {
+			for socket := range b.sockets {
 				select {
-				case client.Send() <- message:
+				case socket.Send() <- message:
 				default:
-					close(client.Send())
-					delete(b.clients, client)
+					close(socket.Send())
+					delete(b.sockets, socket)
 				}
 			}
 			/*
@@ -56,8 +67,12 @@ func (b *Broadcaster) Start() {
 
 }
 
-func (b *Broadcaster) Register() chan Client {
+func (b *Broadcaster) Register() chan *UserSocket {
 	return b.register
+}
+
+func (b *Broadcaster) Unregister() chan *UserSocket {
+	return b.unregister
 }
 
 func (b *Broadcaster) Broadcast() chan []byte {
