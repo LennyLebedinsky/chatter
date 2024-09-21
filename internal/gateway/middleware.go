@@ -22,7 +22,7 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
-		writer := &logResponseWriter{ResponseWriter: w}
+		writer := &statusCodeWriter{ResponseWriter: w}
 		next.ServeHTTP(writer, r)
 
 		g.logger.Printf("%s %s : %d %s",
@@ -32,17 +32,17 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-type logResponseWriter struct {
+type statusCodeWriter struct {
 	http.ResponseWriter
 	statusCode int
 }
 
-func (w *logResponseWriter) WriteHeader(code int) {
+func (w *statusCodeWriter) WriteHeader(code int) {
 	w.statusCode = code
 	w.ResponseWriter.WriteHeader(code)
 }
 
-func (w *logResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+func (w *statusCodeWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	h, ok := w.ResponseWriter.(http.Hijacker)
 	if !ok {
 		return nil, nil, errors.New("hijack not supported")
