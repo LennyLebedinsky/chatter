@@ -2,12 +2,29 @@
 <html lang="en">
 
 <head>
-    <title>Chat Example</title>
+    <title>Simple Chat</title>
     <script type="text/javascript">
         var socket;
         var currentUser = "";
         window.onload = function () {
-            disableChatControls(true);
+            disableControls("bottomPanel", true);
+        }
+
+        function wrapTextWithDiv(text, bold) {
+            var item = document.createElement("div");
+            item.innerHTML = text;
+            if (bold) {
+                item.innerHTML = "<b>" + item.innerHTML + "</b"
+            }
+            return item;
+        }
+
+        function disableControls(controlId, disabled) {
+            var chatControls = document.getElementById(controlId);
+            var nodes = chatControls.getElementsByTagName('*');
+            for (var i = 0; i < nodes.length; i++) {
+                nodes[i].disabled = disabled;
+            }
         }
 
         function login() {
@@ -20,24 +37,41 @@
 
             socket.onopen = function (event) {
                 currentUser = usernameInput.value
-                disableChatControls(false);
+                disableControls("bottomPanel", false);
             }
+
+            socket.onmessage = function (event) {                
+                dispatchMessage(event.data);
+                /*
+                var messages = event.data.split('\n');
+                for (var i = 0; i < messages.length; i++) {
+                    var item = document.createElement("div");
+                    item.innerText = messages[i];
+                    appendLog(item);
+                }*/
+            };
+
+            socket.onclose = function (event) {
+                appendLog(wrapTextWithDiv("Connection closed by the server.", true));
+            };
+
             socket.onerror = function (error) {
                 alert(error);
-                disableChatControls(true);
+                disableControls("bottomPanel", true);
             };
         }
 
-        function disableChatControls(disabled) {
-            var chatControls = document.getElementById("chat");
-            var nodes = chatControls.getElementsByTagName('*');
-            for (var i = 0; i < nodes.length; i++) {
-                nodes[i].disabled = disabled;
+        function appendLog(item) {
+            var log = document.getElementById("log");
+            var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+            log.appendChild(item);
+            if (doScroll) {
+                log.scrollTop = log.scrollHeight - log.clientHeight;
             }
         }
 
-        function send(){
-            if(!socket){
+        function send() {
+            if (!socket) {
                 return
             }
 
@@ -48,129 +82,126 @@
             messageObject["isNotification"] = false;
             messageObject["value"] = messageInput.value;
 
-            socket.send(JSON.stringify(messageObject))
+            socket.send(JSON.stringify(messageObject));
             messageInput.value = "";
         }
 
-        /*
-                window.onload = function () {
-        
-                    var msg = document.getElementById("msg");
-                    var log = document.getElementById("log");
-        
-                    var username = document.getElementById("username");
-        
-                    function appendLog(item) {
-                        var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
-                        log.appendChild(item);
-                        if (doScroll) {
-                            log.scrollTop = log.scrollHeight - log.clientHeight;
-                        }
-                    }
-        
-                    document.getElementById("login").onsubmit = function () {
-                        if (!username.value) {
-                            return false;
-                        }
-                        window.alert(username.value)
-                        if (window["WebSocket"]) {
-                            conn = new WebSocket("ws://localhost:8080/ws/" + username.value);
-                            conn.onclose = function (evt) {
-                                var item = document.createElement("div");
-                                item.innerHTML = "<b>Connection closed.</b>";
-                                appendLog(item);
-                            };
-                            conn.onmessage = function (evt) {
-                                var messages = evt.data.split('\n');
-                                for (var i = 0; i < messages.length; i++) {
-                                    var item = document.createElement("div");
-                                    item.innerText = messages[i];
-                                    appendLog(item);
-                                }
-                            };
-                        } else {
-                            var item = document.createElement("div");
-                            item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
-                            appendLog(item);
-                        }
-                    };
-        
-                    return false;
-                };
-        
-                document.getElementById("form").onsubmit = function () {
-                    if (!conn) {
-                        return false;
-                    }
-                    if (!msg.value) {
-                        return false;
-                    }
-                    conn.send(msg.value);
-                    msg.value = "";
-                    return false;
-                };
-        */
+        function dispatchMessage(message) {
+            messageObject = JSON.parse(message);            
+            if (typeof messageObject !== 'object' || messageObject === null) {
+                return;
+            }
+
+            var text = `<b>${messageObject.user}:</b> ${messageObject.value}`;            
+            appendLog(wrapTextWithDiv(text, message.isNotification));
+        }
 
     </script>
     <style type="text/css">
-        html {
-            overflow: hidden;
+        html,
+        body {
+            width: 100%;
+            height: 100%;
         }
 
         body {
-            overflow: hidden;
-            padding: 0;
-            margin: 0;
-            width: 100%;
-            height: 100%;
+            position: relative;
             background: gray;
         }
 
-        #user {
-            padding: 0 0.5em 0 0.5em;
-            margin: 0;
+        #wrapper {
             position: absolute;
-            top: 0.5em;
-            bottom: 1em;
-            left: 0px;
-            width: 100%;
-            overflow: hidden;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border: 1px solid #333;
+        }
+
+        #upperPanel {
+            position: absolute;
+            height: 50px;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        #user {
+            margin: 10px 10px 10px 10px;
+        }
+
+        #middlePanel {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            right: 0;
+            bottom: 50px;
+        }
+
+        #rooms {
+            background: darkgray;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 200px;
+            overflow: auto;
+        }
+
+        #roomList {
+            position: absolute;
+            width: 180px;
+
+            margin: 10px 10px 10px 10px;
         }
 
         #log {
             background: white;
-            margin: 0;
-            padding: 0.5em 0.5em 0.5em 0.5em;
             position: absolute;
-            top: 2.5em;
-            left: 0.5em;
-            right: 0.5em;
-            bottom: 3em;
+            top: 0;
+            left: 200px;
+            bottom: 0;
+            right: 0;
             overflow: auto;
         }
 
-        #talk {
-            padding: 0 0.5em 0 0.5em;
-            margin: 0;
+        #bottomPanel {
+            height: 50px;
             position: absolute;
-            bottom: 1em;
+            bottom: 0px;
             left: 0px;
-            width: 100%;
-            overflow: hidden;
+            right: 0px;
+        }
+
+        #talk {
+            margin: 10px 10px 10px 10px;
         }
     </style>
 </head>
 
 <body>
-    <div id="user">
-        <input type="text" id="username" size="64" autofocus />
-        <button onclick="login()">Login</button>
-    </div>
-    <div id="chat">
-        <div id="log"></div>
-        <div id="talk">
-            <input type="text" id="message" size="64" autofocus />
-            <button onclick="send()">Send</button>
+    <div id="wrapper">
+        <div id="upperPanel">
+            <div id="user">
+                <input type="text" id="username" size="64" autofocus />
+                <button onclick="login()">Login</button>
+            </div>
+        </div>
+        <div id="middlePanel">
+            <div id="rooms">
+                <select id="roomList" size="20">
+
+                </select>
+            </div>
+            <div id="log">
+            </div>
+        </div>
+        <div id="bottomPanel">
+            <div id="talk">
+                <input type="text" id="message" size="120" autofocus />
+                <button onclick="send()">Send</button>
+            </div>
         </div>
     </div>
 </body>

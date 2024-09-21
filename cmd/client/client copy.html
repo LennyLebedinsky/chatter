@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Chat Example</title>
+    <script type="text/javascript">
+        var socket;
+        var currentUser = "";
+        window.onload = function () {
+            disableChatControls(true);
+        }
+
+        function login() {
+            if (socket) {
+                return
+            }
+
+            var usernameInput = document.getElementById("username");
+            socket = new WebSocket("ws://localhost:8080/ws/" + usernameInput.value);
+
+            socket.onopen = function (event) {
+                currentUser = usernameInput.value
+                disableChatControls(false);
+            }
+            socket.onerror = function (error) {
+                alert(error);
+                disableChatControls(true);
+            };
+        }
+
+        function disableChatControls(disabled) {
+            var chatControls = document.getElementById("chat");
+            var nodes = chatControls.getElementsByTagName('*');
+            for (var i = 0; i < nodes.length; i++) {
+                nodes[i].disabled = disabled;
+            }
+        }
+
+        function send() {
+            if (!socket) {
+                return
+            }
+
+            var messageInput = document.getElementById("message");
+            var messageObject = {};
+            messageObject["user"] = currentUser;
+            messageObject["room"] = "General";
+            messageObject["isNotification"] = false;
+            messageObject["value"] = messageInput.value;
+
+            socket.send(JSON.stringify(messageObject))
+            messageInput.value = "";
+        }
+
+        /*
+                window.onload = function () {
+        
+                    var msg = document.getElementById("msg");
+                    var log = document.getElementById("log");
+        
+                    var username = document.getElementById("username");
+        
+                    function appendLog(item) {
+                        var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+                        log.appendChild(item);
+                        if (doScroll) {
+                            log.scrollTop = log.scrollHeight - log.clientHeight;
+                        }
+                    }
+        
+                    document.getElementById("login").onsubmit = function () {
+                        if (!username.value) {
+                            return false;
+                        }
+                        window.alert(username.value)
+                        if (window["WebSocket"]) {
+                            conn = new WebSocket("ws://localhost:8080/ws/" + username.value);
+                            conn.onclose = function (evt) {
+                                var item = document.createElement("div");
+                                item.innerHTML = "<b>Connection closed.</b>";
+                                appendLog(item);
+                            };
+                            conn.onmessage = function (evt) {
+                                var messages = evt.data.split('\n');
+                                for (var i = 0; i < messages.length; i++) {
+                                    var item = document.createElement("div");
+                                    item.innerText = messages[i];
+                                    appendLog(item);
+                                }
+                            };
+                        } else {
+                            var item = document.createElement("div");
+                            item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
+                            appendLog(item);
+                        }
+                    };
+        
+                    return false;
+                };
+        
+                document.getElementById("form").onsubmit = function () {
+                    if (!conn) {
+                        return false;
+                    }
+                    if (!msg.value) {
+                        return false;
+                    }
+                    conn.send(msg.value);
+                    msg.value = "";
+                    return false;
+                };
+        */
+
+    </script>
+    <style type="text/css">
+        html {
+            overflow: hidden;
+        }
+
+        body {
+            overflow: hidden;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: gray;
+        }
+
+        #user {
+            padding: 0 0.5em 0 0.5em;
+            margin: 0;
+            position: absolute;
+            top: 0.5em;
+            bottom: 1em;
+            left: 0px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+
+        #rooms {
+            background: white;
+            margin: 0;
+            padding: 0.5em 0.5em 0.5em 0.5em;
+            width: 15em;
+
+            top: 2.5em;
+            /* left: 0.5em;
+            right: 0.5em;
+            bottom: 3em; */
+            overflow: auto;
+
+            float: left;
+            position: absolute;
+        }
+
+        #log {
+            background: white;
+            margin-left: 16em;
+            padding: 0.5em 0.5em 0.5em 0.5em;
+
+            top: 2.5em;
+            /*left: 15em;
+            right: 0.5em;
+            bottom: 3em; */
+            overflow: auto;
+            position: absolute;
+
+
+        }
+
+        #talk {
+            padding: 0 0.5em 0 0.5em;
+            margin: 0;
+            position: absolute;
+            bottom: 1em;
+            left: 0px;
+            width: 100%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="user">
+        <input type="text" id="username" size="64" autofocus />
+        <button onclick="login()">Login</button>
+    </div>
+    <div id="chat">
+       <div id="panel">
+            <div id="rooms">
+                <!-- <select id="roomList" size="10">
+                </select> -->
+            </div>
+            <div id="log"></div>
+        </div>
+        <div id="talk">
+            <input type="text" id="message" size="64" autofocus />
+            <button onclick="send()">Send</button>
+        </div>
+    </div>
+</body>
+
+</html>

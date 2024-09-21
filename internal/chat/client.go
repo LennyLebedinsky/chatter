@@ -2,6 +2,7 @@ package chat
 
 import (
 	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/lennylebedinsky/chatter/internal/domain"
@@ -13,7 +14,7 @@ type UserSocket struct {
 
 	broadcaster *Broadcaster
 
-	send chan *Message
+	outbound chan *Message
 
 	logger *log.Logger
 }
@@ -27,7 +28,7 @@ func NewUserSocket(
 		user:        user,
 		conn:        conn,
 		broadcaster: broadcaster,
-		send:        make(chan *Message),
+		outbound:    make(chan *Message),
 		logger:      logger,
 	}
 }
@@ -50,7 +51,9 @@ func (s *UserSocket) ReadLoop() {
 			}
 		}
 		s.logger.Printf("Received message: %v\n", message)
-		//message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+		// Those are coming from client, so they are text messages.
+		message.ServerTime = time.Now()
+		message.IsNotification = false
 		s.broadcaster.message <- message
 	}
 }
@@ -61,7 +64,7 @@ func (s *UserSocket) WriteLoop() {
 	}()
 	for {
 		select {
-		case message, ok := <-s.send:
+		case message, ok := <-s.outbound:
 			if !ok {
 				s.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return

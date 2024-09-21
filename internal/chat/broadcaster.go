@@ -46,7 +46,7 @@ func (b *Broadcaster) Start() {
 		case socket := <-b.unregister:
 			if _, ok := b.sockets[socket]; ok {
 				delete(b.sockets, socket)
-				close(socket.send)
+				close(socket.outbound)
 				b.logger.Printf("User %s unregistered from broadcaster.\n", socket.user.Name)
 				if err := b.repo.Unregister(socket.user.Name); err != nil {
 					b.logger.Printf("Error: %v\n", err)
@@ -56,9 +56,9 @@ func (b *Broadcaster) Start() {
 			b.logger.Printf("Broadcasting message %v", message)
 			for socket := range b.sockets {
 				select {
-				case socket.send <- message:
+				case socket.outbound <- message:
 				default:
-					close(socket.send)
+					close(socket.outbound)
 					delete(b.sockets, socket)
 				}
 			}
