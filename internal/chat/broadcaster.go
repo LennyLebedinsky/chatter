@@ -12,7 +12,7 @@ type Broadcaster struct {
 	register   chan *UserSocket
 	unregister chan *UserSocket
 
-	message chan []byte
+	message chan *Message
 
 	repo domain.Repository
 
@@ -24,7 +24,7 @@ func NewBroadcaster(repo domain.Repository, logger *log.Logger) *Broadcaster {
 		sockets:    make(map[*UserSocket]bool),
 		register:   make(chan *UserSocket),
 		unregister: make(chan *UserSocket),
-		message:    make(chan []byte),
+		message:    make(chan *Message),
 		repo:       repo,
 		logger:     logger,
 	}
@@ -46,19 +46,19 @@ func (b *Broadcaster) Start() {
 		case socket := <-b.unregister:
 			if _, ok := b.sockets[socket]; ok {
 				delete(b.sockets, socket)
-				close(socket.Send())
+				close(socket.send)
 				b.logger.Printf("User %s unregistered from broadcaster.\n", socket.user.Name)
 				if err := b.repo.Unregister(socket.user.Name); err != nil {
 					b.logger.Printf("Error: %v\n", err)
 				}
 			}
-
 		case message := <-b.message:
+			b.logger.Printf("Broadcasting message %v", message)
 			for socket := range b.sockets {
 				select {
-				case socket.Send() <- message:
+				case socket.send <- message:
 				default:
-					close(socket.Send())
+					close(socket.send)
 					delete(b.sockets, socket)
 				}
 			}

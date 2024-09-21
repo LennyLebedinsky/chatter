@@ -37,4 +37,5 @@ func (g *Gateway) serveUserWs(w http.ResponseWriter, r *http.Request) {
 	g.broadcaster.Register() <- userSocket
 
 	go userSocket.ReadLoop()
+	go userSocket.WriteLoop()
 }

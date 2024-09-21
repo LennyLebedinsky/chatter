@@ -13,7 +13,7 @@ type UserSocket struct {
 
 	broadcaster *Broadcaster
 
-	send chan []byte
+	send chan *Message
 
 	logger *log.Logger
 }
@@ -27,13 +27,9 @@ func NewUserSocket(
 		user:        user,
 		conn:        conn,
 		broadcaster: broadcaster,
-		send:        make(chan []byte),
+		send:        make(chan *Message),
 		logger:      logger,
 	}
-}
-
-func (s *UserSocket) Send() chan []byte {
-	return s.send
 }
 
 // Supposed to be run as goroutine.
@@ -43,16 +39,43 @@ func (s *UserSocket) ReadLoop() {
 		s.conn.Close()
 	}()
 	for {
-		_, _, err := s.conn.ReadMessage()
+		message := &Message{}
+		err := s.conn.ReadJSON(message)
 		if err != nil {
 			if closeErr, ok := err.(*websocket.CloseError); ok {
 				s.logger.Printf("Connection closed for user %s: %v\n", s.user.Name, closeErr)
+				return
 			} else {
 				s.logger.Printf("Error reading message for user %s: %v\n", s.user.Name, err)
 			}
-			break
 		}
+		s.logger.Printf("Received message: %v\n", message)
 		//message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		//c.hub.broadcast <- message
+		s.broadcaster.message <- message
+	}
+}
+
+func (s *UserSocket) WriteLoop() {
+	defer func() {
+		s.conn.Close()
+	}()
+	for {
+		select {
+		case message, ok := <-s.send:
+			if !ok {
+				s.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			err := s.conn.WriteJSON(message)
+			if err != nil {
+				if closeErr, ok := err.(*websocket.CloseError); ok {
+					s.logger.Printf("Connection closed for user %s: %v\n", s.user.Name, closeErr)
+					return
+				} else {
+					s.logger.Printf("Error writing message for user %s: %v\n", s.user.Name, err)
+				}
+			}
+			s.logger.Printf("Sent message %v to user %s\n", message, s.user.Name)
+		}
 	}
 }
