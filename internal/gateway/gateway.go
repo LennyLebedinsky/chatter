@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"log"
 	"sync/atomic"
 
@@ -34,6 +35,13 @@ func New(repo domain.Repository, messageStore message.Store, logger *log.Logger)
 	g.registerRoutes()
 
 	return g
+}
+
+func (g *Gateway) StartBroadcaster(ctx context.Context) {
+	// Just one broadcaster goroutine should run for the gateway.
+	if g.broadcasterStarted.CompareAndSwap(false, true) {
+		go g.broadcaster.Start(ctx)
+	}
 }
 
 func (g *Gateway) Router() *mux.Router {

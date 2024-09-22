@@ -1,24 +1,25 @@
 package domain
 
 import (
+	"context"
 	"reflect"
 	"testing"
 )
 
 var testUserA = &User{
-	Name: "Jarvis",
+	Name: "jarvis",
 }
 
 var testUserB = &User{
-	Name: "Ultron",
+	Name: "ultron",
 }
 
 var testRoomA = &Room{
-	Name: "Sokovia",
+	Name: "sokovia",
 }
 
 var testRoomB = &Room{
-	Name: "AvengersHub",
+	Name: "hub",
 }
 
 func TestInMemoryRepository_Register(t *testing.T) {
@@ -93,7 +94,7 @@ func TestInMemoryRepository_Register(t *testing.T) {
 				userToRooms: tt.fields.userInRooms,
 				roomToUsers: tt.fields.roomWithUsers,
 			}
-			got, err := r.CreateUser(tt.args.userName)
+			got, err := r.CreateUser(context.Background(), tt.args.userName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InMemoryRepository.Register() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -132,7 +133,7 @@ func TestInMemoryRepository_Join(t *testing.T) {
 				userToRooms: tt.fields.userInRooms,
 				roomToUsers: tt.fields.roomWithUsers,
 			}
-			if err := r.JoinRoom(tt.args.userName, tt.args.roomName); (err != nil) != tt.wantErr {
+			if err := r.JoinRoom(context.Background(), tt.args.userName, tt.args.roomName); (err != nil) != tt.wantErr {
 				t.Errorf("InMemoryRepository.Join() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
