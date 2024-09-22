@@ -50,9 +50,6 @@ func (b *Broadcaster) Start() {
 				delete(b.sockets, socket)
 				close(socket.outbound)
 				b.logger.Printf("User %s unregistered from broadcaster.\n", socket.user.Name)
-				if err := b.repo.UnregisterUser(socket.user.Name); err != nil {
-					b.logger.Printf("Error: %v\n", err)
-				}
 			}
 		case message := <-b.message:
 			if err := b.validate(message); err != nil {
@@ -89,6 +86,16 @@ func (b *Broadcaster) Register() chan *UserSocket {
 
 func (b *Broadcaster) Message() chan *Message {
 	return b.message
+}
+
+func (b *Broadcaster) IsRegistered(user *domain.User) bool {
+	for socket := range b.sockets {
+		if socket.user == user {
+			return true
+		}
+	}
+
+	return false
 }
 
 // validate checks if message is considered valid for broadcasting.
