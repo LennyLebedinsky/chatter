@@ -61,7 +61,7 @@ func (b *Broadcaster) Start() {
 				b.accept(message)
 				b.logger.Printf("Broadcasting message %v", message)
 				destination, err := b.dispatch(message)
-				if err != nil {
+				if err == nil {
 					for _, socket := range destination {
 						select {
 						case socket.outbound <- message:
