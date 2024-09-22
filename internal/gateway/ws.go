@@ -20,10 +20,10 @@ var upgrader = websocket.Upgrader{
 
 func (g *Gateway) serveUserWs(w http.ResponseWriter, r *http.Request) {
 	userName := strings.ToLower(mux.Vars(r)["username"])
-	user := g.repo.FindUser(userName)
+	user := g.repo.FindUser(r.Context(), userName)
 	var err error
 	if user == nil {
-		user, err = g.repo.CreateUser(userName)
+		user, err = g.repo.CreateUser(r.Context(), userName)
 		if err != nil {
 			g.logError(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

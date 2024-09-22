@@ -38,7 +38,7 @@ func NewBroadcaster(repo domain.Repository, messageStore message.Store, logger *
 }
 
 // Supposed to be run as goroutine.
-func (b *Broadcaster) Start() {
+func (b *Broadcaster) Start(ctx context.Context) {
 	defer func() {
 		b.logger.Println("Message broadcaster stopped.")
 	}()
@@ -56,13 +56,13 @@ func (b *Broadcaster) Start() {
 				b.logger.Printf("User %s unregistered from broadcaster.\n", socket.user.Name)
 			}
 		case msg := <-b.message:
-			if err := b.validate(msg); err != nil {
+			if err := b.validate(ctx, msg); err != nil {
 				// Not fatal, just log and continue listening for other messages.
 				b.logger.Printf("Message is not accepted by broadcaster: %v\n", err)
 			} else {
-				b.accept(msg)
+				b.accept(ctx, msg)
 				b.logger.Printf("Broadcasting message %v", msg)
-				destination, err := b.dispatch(msg)
+				destination, err := b.dispatch(ctx, msg)
 				if err == nil {
 					for _, socket := range destination {
 						select {
@@ -74,12 +74,9 @@ func (b *Broadcaster) Start() {
 					}
 				}
 			}
-			/*
-				case _, ok := <-stop:
-					if !ok {
-						b.logger.Println("Stopping broadcaster...")
-						return
-					}*/
+		case <-ctx.Done():
+			b.logger.Printf("Context canceled, stopping broadcaster...")
+			return
 		}
 	}
 
@@ -104,7 +101,7 @@ func (b *Broadcaster) IsRegistered(user *domain.User) bool {
 }
 
 // validate checks if message is considered valid for broadcasting.
-func (b *Broadcaster) validate(msg *message.Message) error {
+func (b *Broadcaster) validate(_ context.Context, msg *message.Message) error {
 	// Notifications potentially could have user or room missed.
 	if msg.IsNotification {
 		return nil
@@ -122,19 +119,19 @@ func (b *Broadcaster) validate(msg *message.Message) error {
 }
 
 // accept marks that message is allowed into system.
-func (b *Broadcaster) accept(msg *message.Message) {
+func (b *Broadcaster) accept(ctx context.Context, msg *message.Message) {
 	// Setup server timestamp.
 	msg.ServerTime = time.Now()
 	// TODO: assign unique ID, possibly logical clock.
 	// Add message to persistent storage.
-	if err := b.messageStore.SaveMessage(context.Background(), msg.Room, msg); err != nil {
+	if err := b.messageStore.SaveMessage(ctx, msg.Room, msg); err != nil {
 		// Not fatal, just continue without message retention.
 		b.logger.Printf("Message could not be stored: %v\n", err)
 	}
 }
 
 // dispatch determines only those users to whom message will be broadcasted.
-func (b *Broadcaster) dispatch(msg *message.Message) ([]*UserSocket, error) {
+func (b *Broadcaster) dispatch(ctx context.Context, msg *message.Message) ([]*UserSocket, error) {
 	sockets := []*UserSocket{}
 
 	// Notifications are going to everyone.
@@ -146,7 +143,7 @@ func (b *Broadcaster) dispatch(msg *message.Message) ([]*UserSocket, error) {
 	}
 
 	// Main rule for this chat: message is broadcasted only to users who joined the same room.
-	usersInSameRoom, err := b.repo.ListParticipants(msg.Room)
+	usersInSameRoom, err := b.repo.ListParticipants(ctx, msg.Room)
 	if err != nil {
 		return nil, err
 	}

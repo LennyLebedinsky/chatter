@@ -16,7 +16,7 @@ func (g *Gateway) handleListRooms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rooms, err := g.repo.ListRooms()
+	rooms, err := g.repo.ListRooms(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -36,7 +36,7 @@ func (g *Gateway) handleListRoomsWithUser(w http.ResponseWriter, r *http.Request
 	}
 
 	userName := strings.ToLower(mux.Vars(r)["username"])
-	roomsParticipation, err := g.repo.ListParticipantsForAllRooms()
+	roomsParticipation, err := g.repo.ListParticipantsForAllRooms(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -92,7 +92,7 @@ func (g *Gateway) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 
 	roomName := strings.ToLower(mux.Vars(r)["roomname"])
 	userName := strings.ToLower(mux.Vars(r)["username"])
-	if err := g.repo.JoinRoom(userName, roomName); err != nil {
+	if err := g.repo.JoinRoom(r.Context(), userName, roomName); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -108,7 +108,7 @@ func (g *Gateway) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 
 	roomName := strings.ToLower(mux.Vars(r)["roomname"])
 	userName := strings.ToLower(mux.Vars(r)["username"])
-	if _, err := g.repo.CreateRoom(roomName, userName); err != nil {
+	if _, err := g.repo.CreateRoom(r.Context(), roomName, userName); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

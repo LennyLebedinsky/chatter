@@ -12,7 +12,7 @@ func (g *Gateway) broadcasterStartMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Lazy starting broadcaster loop when the first request arrives.
 		if g.broadcasterStarted.CompareAndSwap(false, true) {
-			go g.broadcaster.Start()
+			go g.broadcaster.Start(r.Context())
 		}
 		next.ServeHTTP(w, r)
 	})

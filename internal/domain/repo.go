@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"errors"
 	"slices"
 )
@@ -11,17 +12,17 @@ type RoomParticipation struct {
 }
 
 type Repository interface {
-	CreateUser(userName string) (*User, error)
-	FindUser(userName string) *User
+	CreateUser(ctx context.Context, userName string) (*User, error)
+	FindUser(ctx context.Context, userName string) *User
 
-	CreateRoom(roomName, creatorUserName string) (*Room, error)
-	FindRoom(roomName string) *Room
-	JoinRoom(userName, roomName string) error
-	LeaveRoom(userName, roomName string) error
+	CreateRoom(ctx context.Context, roomName, creatorUserName string) (*Room, error)
+	FindRoom(ctx context.Context, roomName string) *Room
+	JoinRoom(ctx context.Context, userName, roomName string) error
+	LeaveRoom(ctx context.Context, userName, roomName string) error
 
-	ListRooms() ([]*Room, error)
-	ListParticipants(roomName string) ([]*User, error)
-	ListParticipantsForAllRooms() ([]*RoomParticipation, error)
+	ListRooms(ctx context.Context) ([]*Room, error)
+	ListParticipants(ctx context.Context, roomName string) ([]*User, error)
+	ListParticipantsForAllRooms(ctx context.Context) ([]*RoomParticipation, error)
 }
 
 type InMemoryRepository struct {
@@ -46,8 +47,8 @@ func NewInMemoryRepository() Repository {
 	return r
 }
 
-func (r *InMemoryRepository) CreateUser(userName string) (*User, error) {
-	if r.FindUser(userName) != nil {
+func (r *InMemoryRepository) CreateUser(ctx context.Context, userName string) (*User, error) {
+	if r.FindUser(ctx, userName) != nil {
 		return nil, errors.New("user with this name already exists")
 	}
 
@@ -59,16 +60,12 @@ func (r *InMemoryRepository) CreateUser(userName string) (*User, error) {
 	return newUser, nil
 }
 
-func (r *InMemoryRepository) UserExists(userName string) bool {
-	return r.FindUser(userName) != nil
-}
-
-func (r *InMemoryRepository) JoinRoom(userName, roomName string) error {
-	user := r.FindUser(userName)
+func (r *InMemoryRepository) JoinRoom(ctx context.Context, userName, roomName string) error {
+	user := r.FindUser(ctx, userName)
 	if user == nil {
 		return errors.New("no user registered under this name")
 	}
-	room := r.FindRoom(roomName)
+	room := r.FindRoom(ctx, roomName)
 	if room == nil {
 		return errors.New("no room with this name exists")
 	}
@@ -93,12 +90,12 @@ func (r *InMemoryRepository) JoinRoom(userName, roomName string) error {
 	return nil
 }
 
-func (r *InMemoryRepository) LeaveRoom(userName, roomName string) error {
-	user := r.FindUser(userName)
+func (r *InMemoryRepository) LeaveRoom(ctx context.Context, userName, roomName string) error {
+	user := r.FindUser(ctx, userName)
 	if user == nil {
 		return errors.New("no user registered under this name")
 	}
-	room := r.FindRoom(roomName)
+	room := r.FindRoom(ctx, roomName)
 	if room == nil {
 		return errors.New("no room with this name exists")
 	}
@@ -121,13 +118,13 @@ func (r *InMemoryRepository) LeaveRoom(userName, roomName string) error {
 	return nil
 }
 
-func (r *InMemoryRepository) CreateRoom(roomName, creatorUserName string) (*Room, error) {
-	creatorUser := r.FindUser(creatorUserName)
+func (r *InMemoryRepository) CreateRoom(ctx context.Context, roomName, creatorUserName string) (*Room, error) {
+	creatorUser := r.FindUser(ctx, creatorUserName)
 	if creatorUser == nil {
 		return nil, errors.New("no user registered under this name")
 	}
 
-	if r.FindRoom(roomName) != nil {
+	if r.FindRoom(ctx, roomName) != nil {
 		return nil, errors.New("room with this name already exists")
 	}
 
@@ -138,14 +135,14 @@ func (r *InMemoryRepository) CreateRoom(roomName, creatorUserName string) (*Room
 	r.rooms[roomName] = newRoom
 
 	// User who is creating room automatically joins it.
-	if err := r.JoinRoom(creatorUserName, roomName); err != nil {
+	if err := r.JoinRoom(ctx, creatorUserName, roomName); err != nil {
 		return nil, err
 	}
 
 	return newRoom, nil
 }
 
-func (r *InMemoryRepository) ListRooms() ([]*Room, error) {
+func (r *InMemoryRepository) ListRooms(_ context.Context) ([]*Room, error) {
 	rooms := make([]*Room, len(r.rooms))
 	i := 0
 	for _, room := range r.rooms {
@@ -155,15 +152,15 @@ func (r *InMemoryRepository) ListRooms() ([]*Room, error) {
 	return rooms, nil
 }
 
-func (r *InMemoryRepository) ListParticipants(roomName string) ([]*User, error) {
-	room := r.FindRoom(roomName)
+func (r *InMemoryRepository) ListParticipants(ctx context.Context, roomName string) ([]*User, error) {
+	room := r.FindRoom(ctx, roomName)
 	if room == nil {
 		return nil, errors.New("no room with this name exists")
 	}
 	return r.roomToUsers[room], nil
 }
 
-func (r *InMemoryRepository) ListParticipantsForAllRooms() ([]*RoomParticipation, error) {
+func (r *InMemoryRepository) ListParticipantsForAllRooms(_ context.Context) ([]*RoomParticipation, error) {
 	roomsParticipation := make([]*RoomParticipation, len(r.rooms))
 	i := 0
 	for _, room := range r.rooms {
@@ -176,14 +173,14 @@ func (r *InMemoryRepository) ListParticipantsForAllRooms() ([]*RoomParticipation
 	return roomsParticipation, nil
 }
 
-func (r *InMemoryRepository) FindUser(userName string) *User {
+func (r *InMemoryRepository) FindUser(_ context.Context, userName string) *User {
 	if user, ok := r.users[userName]; ok {
 		return user
 	}
 	return nil
 }
 
-func (r *InMemoryRepository) FindRoom(roomName string) *Room {
+func (r *InMemoryRepository) FindRoom(_ context.Context, roomName string) *Room {
 	if room, ok := r.rooms[roomName]; ok {
 		return room
 	}
