@@ -2,7 +2,6 @@ package chat
 
 import (
 	"log"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/lennylebedinsky/chatter/internal/domain"
@@ -51,9 +50,6 @@ func (s *UserSocket) ReadLoop() {
 			}
 		}
 		s.logger.Printf("Received message: %v\n", message)
-		// Those are coming from client, so they are text messages.
-		message.ServerTime = time.Now()
-		message.IsNotification = false
 		s.broadcaster.message <- message
 	}
 }

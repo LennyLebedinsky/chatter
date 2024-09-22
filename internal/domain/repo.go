@@ -20,7 +20,8 @@ type Repository interface {
 	CreateRoom(roomName, creatorUserName string) (*Room, error)
 
 	ListRooms() ([]*Room, error)
-	ListRoomsParticipation() ([]*RoomParticipation, error)
+	ListParticipants(roomName string) ([]*User, error)
+	ListParticipantsForAllRooms() ([]*RoomParticipation, error)
 }
 
 type InMemoryRepository struct {
@@ -164,7 +165,15 @@ func (r *InMemoryRepository) ListRooms() ([]*Room, error) {
 	return rooms, nil
 }
 
-func (r *InMemoryRepository) ListRoomsParticipation() ([]*RoomParticipation, error) {
+func (r *InMemoryRepository) ListParticipants(roomName string) ([]*User, error) {
+	room := r.findRoom(roomName)
+	if room == nil {
+		return nil, errors.New("no room with this name exists")
+	}
+	return r.roomToUsers[room], nil
+}
+
+func (r *InMemoryRepository) ListParticipantsForAllRooms() ([]*RoomParticipation, error) {
 	roomsParticipation := make([]*RoomParticipation, len(r.rooms))
 	i := 0
 	for _, room := range r.rooms {
