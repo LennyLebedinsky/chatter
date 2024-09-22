@@ -93,7 +93,7 @@ func TestInMemoryRepository_Register(t *testing.T) {
 				userToRooms: tt.fields.userInRooms,
 				roomToUsers: tt.fields.roomWithUsers,
 			}
-			got, err := r.Register(tt.args.userName)
+			got, err := r.RegisterUser(tt.args.userName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InMemoryRepository.Register() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -158,7 +158,7 @@ func TestInMemoryRepository_Unregister(t *testing.T) {
 				userToRooms: tt.fields.userInRooms,
 				roomToUsers: tt.fields.roomWithUsers,
 			}
-			if err := r.Unregister(tt.args.userName); (err != nil) != tt.wantErr {
+			if err := r.UnregisterUser(tt.args.userName); (err != nil) != tt.wantErr {
 				t.Errorf("InMemoryRepository.Unregister() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -192,7 +192,7 @@ func TestInMemoryRepository_Join(t *testing.T) {
 				userToRooms: tt.fields.userInRooms,
 				roomToUsers: tt.fields.roomWithUsers,
 			}
-			if err := r.Join(tt.args.userName, tt.args.roomName); (err != nil) != tt.wantErr {
+			if err := r.JoinRoom(tt.args.userName, tt.args.roomName); (err != nil) != tt.wantErr {
 				t.Errorf("InMemoryRepository.Join() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

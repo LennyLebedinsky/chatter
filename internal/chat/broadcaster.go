@@ -50,7 +50,7 @@ func (b *Broadcaster) Start() {
 				delete(b.sockets, socket)
 				close(socket.outbound)
 				b.logger.Printf("User %s unregistered from broadcaster.\n", socket.user.Name)
-				if err := b.repo.Unregister(socket.user.Name); err != nil {
+				if err := b.repo.UnregisterUser(socket.user.Name); err != nil {
 					b.logger.Printf("Error: %v\n", err)
 				}
 			}
@@ -87,8 +87,17 @@ func (b *Broadcaster) Register() chan *UserSocket {
 	return b.register
 }
 
+func (b *Broadcaster) Message() chan *Message {
+	return b.message
+}
+
 // validate checks if message is considered valid for broadcasting.
 func (b *Broadcaster) validate(message *Message) error {
+	// Notifications potentially could have user or room missed.
+	if message.IsNotification {
+		return nil
+	}
+
 	if message.User == "" {
 		return errors.New("message does not have an author")
 	}
@@ -111,6 +120,14 @@ func (b *Broadcaster) accept(message *Message) {
 // dispatch determines only those users to whom message will be broadcasted.
 func (b *Broadcaster) dispatch(message *Message) ([]*UserSocket, error) {
 	sockets := []*UserSocket{}
+
+	// Notifications are going to everyone.
+	if message.IsNotification {
+		for socket := range b.sockets {
+			sockets = append(sockets, socket)
+		}
+		return sockets, nil
+	}
 
 	// Main rule for this chat: message is broadcasted only to users who joined the same room.
 	usersInSameRoom, err := b.repo.ListParticipants(message.Room)

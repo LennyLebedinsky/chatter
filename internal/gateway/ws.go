@@ -19,7 +19,7 @@ var upgrader = websocket.Upgrader{
 
 func (g *Gateway) serveUserWs(w http.ResponseWriter, r *http.Request) {
 	userName := strings.ToLower(mux.Vars(r)["username"])
-	user, err := g.repo.Register(userName)
+	user, err := g.repo.RegisterUser(userName)
 	if err != nil {
 		g.logError(err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -28,7 +28,7 @@ func (g *Gateway) serveUserWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		g.logError(err)
-		err = g.repo.Unregister(user.Name)
+		err = g.repo.UnregisterUser(user.Name)
 		if err != nil {
 			g.logError(err)
 		}
