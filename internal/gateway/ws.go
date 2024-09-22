@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -19,19 +20,27 @@ var upgrader = websocket.Upgrader{
 
 func (g *Gateway) serveUserWs(w http.ResponseWriter, r *http.Request) {
 	userName := strings.ToLower(mux.Vars(r)["username"])
-	user, err := g.repo.RegisterUser(userName)
-	if err != nil {
+	user := g.repo.FindUser(userName)
+	var err error
+	if user == nil {
+		user, err = g.repo.CreateUser(userName)
+		if err != nil {
+			g.logError(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if g.broadcaster.IsRegistered(user) {
+		err = fmt.Errorf("User %s is already registered with broadcaster.", user.Name)
 		g.logError(err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		g.logError(err)
-		err = g.repo.UnregisterUser(user.Name)
-		if err != nil {
-			g.logError(err)
-		}
 		return
 	}
 	userSocket := chat.NewUserSocket(user, conn, g.broadcaster, g.logger)

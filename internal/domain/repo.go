@@ -11,10 +11,11 @@ type RoomParticipation struct {
 }
 
 type Repository interface {
-	RegisterUser(userName string) (*User, error)
-	UnregisterUser(userName string) error
+	CreateUser(userName string) (*User, error)
+	FindUser(userName string) *User
 
 	CreateRoom(roomName, creatorUserName string) (*Room, error)
+	FindRoom(roomName string) *Room
 	JoinRoom(userName, roomName string) error
 	LeaveRoom(userName, roomName string) error
 
@@ -45,8 +46,8 @@ func NewInMemoryRepository() Repository {
 	return r
 }
 
-func (r *InMemoryRepository) RegisterUser(userName string) (*User, error) {
-	if r.findUser(userName) != nil {
+func (r *InMemoryRepository) CreateUser(userName string) (*User, error) {
+	if r.FindUser(userName) != nil {
 		return nil, errors.New("user with this name already exists")
 	}
 
@@ -58,31 +59,16 @@ func (r *InMemoryRepository) RegisterUser(userName string) (*User, error) {
 	return newUser, nil
 }
 
-func (r *InMemoryRepository) UnregisterUser(userName string) error {
-	user := r.findUser(userName)
-	if user == nil {
-		return errors.New("no user registered under this name")
-	}
-
-	// Make user leave all joined rooms.
-	if joinedRooms, ok := r.userToRooms[user]; ok {
-		for _, room := range joinedRooms {
-			if err := r.LeaveRoom(userName, room.Name); err != nil {
-				return err
-			}
-		}
-	}
-	delete(r.users, userName)
-
-	return nil
+func (r *InMemoryRepository) UserExists(userName string) bool {
+	return r.FindUser(userName) != nil
 }
 
 func (r *InMemoryRepository) JoinRoom(userName, roomName string) error {
-	user := r.findUser(userName)
+	user := r.FindUser(userName)
 	if user == nil {
 		return errors.New("no user registered under this name")
 	}
-	room := r.findRoom(roomName)
+	room := r.FindRoom(roomName)
 	if room == nil {
 		return errors.New("no room with this name exists")
 	}
@@ -108,11 +94,11 @@ func (r *InMemoryRepository) JoinRoom(userName, roomName string) error {
 }
 
 func (r *InMemoryRepository) LeaveRoom(userName, roomName string) error {
-	user := r.findUser(userName)
+	user := r.FindUser(userName)
 	if user == nil {
 		return errors.New("no user registered under this name")
 	}
-	room := r.findRoom(roomName)
+	room := r.FindRoom(roomName)
 	if room == nil {
 		return errors.New("no room with this name exists")
 	}
@@ -136,12 +122,12 @@ func (r *InMemoryRepository) LeaveRoom(userName, roomName string) error {
 }
 
 func (r *InMemoryRepository) CreateRoom(roomName, creatorUserName string) (*Room, error) {
-	creatorUser := r.findUser(creatorUserName)
+	creatorUser := r.FindUser(creatorUserName)
 	if creatorUser == nil {
 		return nil, errors.New("no user registered under this name")
 	}
 
-	if r.findRoom(roomName) != nil {
+	if r.FindRoom(roomName) != nil {
 		return nil, errors.New("room with this name already exists")
 	}
 
@@ -170,7 +156,7 @@ func (r *InMemoryRepository) ListRooms() ([]*Room, error) {
 }
 
 func (r *InMemoryRepository) ListParticipants(roomName string) ([]*User, error) {
-	room := r.findRoom(roomName)
+	room := r.FindRoom(roomName)
 	if room == nil {
 		return nil, errors.New("no room with this name exists")
 	}
@@ -190,14 +176,14 @@ func (r *InMemoryRepository) ListParticipantsForAllRooms() ([]*RoomParticipation
 	return roomsParticipation, nil
 }
 
-func (r *InMemoryRepository) findUser(userName string) *User {
+func (r *InMemoryRepository) FindUser(userName string) *User {
 	if user, ok := r.users[userName]; ok {
 		return user
 	}
 	return nil
 }
 
-func (r *InMemoryRepository) findRoom(roomName string) *Room {
+func (r *InMemoryRepository) FindRoom(roomName string) *Room {
 	if room, ok := r.rooms[roomName]; ok {
 		return room
 	}
