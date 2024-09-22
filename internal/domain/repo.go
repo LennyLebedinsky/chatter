@@ -5,6 +5,11 @@ import (
 	"slices"
 )
 
+type RoomParticipation struct {
+	Room         *Room
+	Participants []*User
+}
+
 type Repository interface {
 	Register(userName string) (*User, error)
 	Unregister(userName string) error
@@ -13,15 +18,17 @@ type Repository interface {
 	Leave(userName, roomName string) error
 
 	CreateRoom(roomName, creatorUserName string) (*Room, error)
+
 	ListRooms() ([]*Room, error)
+	ListRoomsParticipation() ([]*RoomParticipation, error)
 }
 
 type InMemoryRepository struct {
 	users map[string]*User
 	rooms map[string]*Room
 
-	userInRooms   map[*User][]*Room
-	roomWithUsers map[*Room][]*User
+	userToRooms map[*User][]*Room
+	roomToUsers map[*Room][]*User
 }
 
 func NewInMemoryRepository() Repository {
@@ -29,8 +36,8 @@ func NewInMemoryRepository() Repository {
 		users: make(map[string]*User),
 		rooms: make(map[string]*Room),
 
-		userInRooms:   make(map[*User][]*Room),
-		roomWithUsers: make(map[*Room][]*User),
+		userToRooms: make(map[*User][]*Room),
+		roomToUsers: make(map[*Room][]*User),
 	}
 
 	r.rooms[defaultRoom.Name] = defaultRoom
@@ -39,7 +46,7 @@ func NewInMemoryRepository() Repository {
 }
 
 func (r *InMemoryRepository) Register(userName string) (*User, error) {
-	if _, ok := r.users[userName]; ok {
+	if r.findUser(userName) != nil {
 		return nil, errors.New("user with this name already exists")
 	}
 
@@ -52,14 +59,13 @@ func (r *InMemoryRepository) Register(userName string) (*User, error) {
 }
 
 func (r *InMemoryRepository) Unregister(userName string) error {
-	var user *User
-	var ok bool
-	if user, ok = r.users[userName]; !ok {
+	user := r.findUser(userName)
+	if user == nil {
 		return errors.New("no user registered under this name")
 	}
 
 	// Make user leave all joined rooms.
-	if joinedRooms, ok := r.userInRooms[user]; ok {
+	if joinedRooms, ok := r.userToRooms[user]; ok {
 		for _, room := range joinedRooms {
 			if err := r.Leave(userName, room.Name); err != nil {
 				return err
@@ -72,61 +78,57 @@ func (r *InMemoryRepository) Unregister(userName string) error {
 }
 
 func (r *InMemoryRepository) Join(userName, roomName string) error {
-	var user *User
-	var room *Room
-	var ok bool
-	if user, ok = r.users[userName]; !ok {
+	user := r.findUser(userName)
+	if user == nil {
 		return errors.New("no user registered under this name")
 	}
-
-	if room, ok = r.rooms[roomName]; !ok {
+	room := r.findRoom(roomName)
+	if room == nil {
 		return errors.New("no room with this name exists")
 	}
 
 	// Update indexes.
-	if _, ok := r.userInRooms[user]; ok {
-		if slices.Index(r.userInRooms[user], room) < 0 {
-			r.userInRooms[user] = append(r.userInRooms[user], room)
+	if _, ok := r.userToRooms[user]; ok {
+		if slices.Index(r.userToRooms[user], room) < 0 {
+			r.userToRooms[user] = append(r.userToRooms[user], room)
 		}
 	} else {
-		r.userInRooms[user] = []*Room{room}
+		r.userToRooms[user] = []*Room{room}
 	}
 
-	if _, ok := r.roomWithUsers[room]; ok {
-		if slices.Index(r.roomWithUsers[room], user) < 0 {
-			r.roomWithUsers[room] = append(r.roomWithUsers[room], user)
+	if _, ok := r.roomToUsers[room]; ok {
+		if slices.Index(r.roomToUsers[room], user) < 0 {
+			r.roomToUsers[room] = append(r.roomToUsers[room], user)
 		}
 	} else {
-		r.roomWithUsers[room] = []*User{user}
+		r.roomToUsers[room] = []*User{user}
 	}
 
 	return nil
 }
 
 func (r *InMemoryRepository) Leave(userName, roomName string) error {
-	var user *User
-	var room *Room
-	var ok bool
-	if user, ok = r.users[userName]; !ok {
+	user := r.findUser(userName)
+	if user == nil {
 		return errors.New("no user registered under this name")
 	}
-
-	if room, ok = r.rooms[roomName]; !ok {
+	room := r.findRoom(roomName)
+	if room == nil {
 		return errors.New("no room with this name exists")
 	}
 
 	// Update indexes.
-	if _, ok := r.userInRooms[user]; ok {
-		index := slices.Index(r.userInRooms[user], room)
+	if _, ok := r.userToRooms[user]; ok {
+		index := slices.Index(r.userToRooms[user], room)
 		if index >= 0 {
-			r.userInRooms[user] = slices.Delete(r.userInRooms[user], index, index+1)
+			r.userToRooms[user] = slices.Delete(r.userToRooms[user], index, index+1)
 		}
 	}
 
-	if _, ok := r.roomWithUsers[room]; ok {
-		index := slices.Index(r.roomWithUsers[room], user)
+	if _, ok := r.roomToUsers[room]; ok {
+		index := slices.Index(r.roomToUsers[room], user)
 		if index >= 0 {
-			r.roomWithUsers[room] = slices.Delete(r.roomWithUsers[room], index, index+1)
+			r.roomToUsers[room] = slices.Delete(r.roomToUsers[room], index, index+1)
 		}
 	}
 
@@ -134,13 +136,12 @@ func (r *InMemoryRepository) Leave(userName, roomName string) error {
 }
 
 func (r *InMemoryRepository) CreateRoom(roomName, creatorUserName string) (*Room, error) {
-	var user *User
-	var ok bool
-	if user, ok = r.users[creatorUserName]; !ok {
+	user := r.findUser(creatorUserName)
+	if user == nil {
 		return nil, errors.New("no user registered under this name")
 	}
 
-	if _, ok = r.rooms[roomName]; ok {
+	if r.findRoom(roomName) != nil {
 		return nil, errors.New("room with this name already exists")
 	}
 
@@ -161,4 +162,31 @@ func (r *InMemoryRepository) ListRooms() ([]*Room, error) {
 		i++
 	}
 	return rooms, nil
+}
+
+func (r *InMemoryRepository) ListRoomsParticipation() ([]*RoomParticipation, error) {
+	roomsParticipation := make([]*RoomParticipation, len(r.rooms))
+	i := 0
+	for _, room := range r.rooms {
+		roomsParticipation[i] = &RoomParticipation{
+			Room:         room,
+			Participants: r.roomToUsers[room],
+		}
+		i++
+	}
+	return roomsParticipation, nil
+}
+
+func (r *InMemoryRepository) findUser(userName string) *User {
+	if user, ok := r.users[userName]; ok {
+		return user
+	}
+	return nil
+}
+
+func (r *InMemoryRepository) findRoom(roomName string) *Room {
+	if room, ok := r.rooms[roomName]; ok {
+		return room
+	}
+	return nil
 }

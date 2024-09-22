@@ -6,15 +6,24 @@
     <script type="text/javascript">
         var socket;
         var currentUser = "";
+        var currentRoom = "";
+        var isRoomJoined = false;
+
+
+        const serverAddress = "localhost:8080";
+        const joinedMarker = "(joined)";
+
         window.onload = function () {
+            disableControls("middlePanel", true);
             disableControls("bottomPanel", true);
+            updateLoginStatus(currentUser);
         }
 
-        function wrapTextWithDiv(text, bold) {
+        function wrapTextWithDiv(text, italic) {
             var item = document.createElement("div");
             item.innerHTML = text;
-            if (bold) {
-                item.innerHTML = "<b>" + item.innerHTML + "</b"
+            if (italic) {
+                item.innerHTML = "<i>" + item.innerHTML + "</i>"
             }
             return item;
         }
@@ -32,15 +41,20 @@
                 return
             }
 
-            var usernameInput = document.getElementById("username");
-            socket = new WebSocket("ws://localhost:8080/ws/" + usernameInput.value);
+            var usernameInput = document.getElementById("usernameInput");
+            socket = new WebSocket("ws://" + serverAddress + "/ws/" + usernameInput.value);
 
             socket.onopen = function (event) {
-                currentUser = usernameInput.value
+                currentUser = usernameInput.value.toLowerCase();
+                updateLoginStatus(currentUser);
+                disableControls("middlePanel", false);
                 disableControls("bottomPanel", false);
+
+                getRooms().then(rooms => fillRooms(rooms));
+                clearLog();
             }
 
-            socket.onmessage = function (event) {                
+            socket.onmessage = function (event) {
                 dispatchMessage(event.data);
                 /*
                 var messages = event.data.split('\n');
@@ -52,13 +66,29 @@
             };
 
             socket.onclose = function (event) {
-                appendLog(wrapTextWithDiv("Connection closed by the server.", true));
+                appendLog(wrapTextWithDiv(`Connection closed. ${event.reason}`, true));
+                disableControls("middlePanel", true);
+                disableControls("bottomPanel", true);
+                currentUser = "";
+                updateLoginStatus(currentUser);
             };
 
             socket.onerror = function (error) {
-                alert(error);
+                appendLog(wrapTextWithDiv(`Connection error. ${event.data}`, true));
+                disableControls("middlePanel", true);
                 disableControls("bottomPanel", true);
+                currentUser = "";
+                updateLoginStatus(currentUser);
             };
+        }
+
+        function logout() {
+            if (!socket) {
+                return;
+            }
+
+            socket.close(1000, "user logout");
+            socket = null;
         }
 
         function appendLog(item) {
@@ -70,15 +100,37 @@
             }
         }
 
+        function clearLog() {
+            var log = document.getElementById("log");
+            log.innerHTML = "";
+        }
+
+        function updateLoginStatus(user) {
+            var usernameInput = document.getElementById("usernameInput");
+            var loginButton = document.getElementById("loginButton");
+            var logoutButton = document.getElementById("logoutButton");
+            if (user != "") {
+                usernameInput.disabled = true;
+                loginButton.disabled = true;
+                logoutButton.disabled = false;
+                logoutButton.innerText = "Logout " + currentUser;
+            } else {
+                usernameInput.disabled = false;
+                loginButton.disabled = false;
+                logoutButton.disabled = true;
+                logoutButton.innerText = "Logout";
+            }
+        }
+
         function send() {
             if (!socket) {
                 return
             }
 
-            var messageInput = document.getElementById("message");
+            var messageInput = document.getElementById("messageInput");
             var messageObject = {};
             messageObject["user"] = currentUser;
-            messageObject["room"] = "General";
+            messageObject["room"] = "general";
             messageObject["isNotification"] = false;
             messageObject["value"] = messageInput.value;
 
@@ -87,13 +139,50 @@
         }
 
         function dispatchMessage(message) {
-            messageObject = JSON.parse(message);            
+            messageObject = JSON.parse(message);
             if (typeof messageObject !== 'object' || messageObject === null) {
                 return;
             }
 
-            var text = `<b>${messageObject.user}:</b> ${messageObject.value}`;            
+            var text = `<b>${messageObject.user}:</b> ${messageObject.value}`;
             appendLog(wrapTextWithDiv(text, message.isNotification));
+        }
+
+        async function getRooms() {
+            var response = await fetch("http://" + serverAddress + "/rooms/" + currentUser);
+            var rooms = await response.json();
+            return rooms;
+        }
+
+        async function postJoinRoom() {
+            var response = await fetch(
+                "http://" + serverAddress + "/join-room/" + currentRoom + "/" + currentUser,
+                {
+                    method: 'POST'
+                }
+            );
+        }
+
+        function fillRooms(rooms) {
+            var roomList = document.getElementById("roomList");
+            roomList.options.length = 0;
+            for (var i = 0; i < rooms.length; i++) {
+                roomList.options[roomList.options.length] = new Option(
+                    rooms[i].Room.Name + (rooms[i].UserIsParticipant ? " " + joinedMarker : ""),
+                    rooms[i].Room.Name);
+            }
+        }
+
+        function roomHighlighted(option) {
+            currentRoom = option.value.toLowerCase();;
+            isRoomJoined = option.text.indexOf(joinedMarker) >= 0;
+        }
+
+        function join(){
+            if (!socket || currentRoom == "" || currentUser == ""){
+                return
+            }            
+            postJoinRoom().then(getRooms().then(rooms => fillRooms(rooms)));            
         }
 
     </script>
@@ -156,6 +245,12 @@
             margin: 10px 10px 10px 10px;
         }
 
+        #participation {
+            position: absolute;
+            bottom: 200px;
+            margin: 10px 10px 10px 10px;
+        }
+
         #log {
             background: white;
             position: absolute;
@@ -184,22 +279,25 @@
     <div id="wrapper">
         <div id="upperPanel">
             <div id="user">
-                <input type="text" id="username" size="64" autofocus />
-                <button onclick="login()">Login</button>
+                <input type="text" id="usernameInput" size="64" autofocus  pattern="[a-z0-9]+"/>
+                <button id="loginButton" onclick="login()">Login</button>
+                <button id="logoutButton" onclick="logout()">Logout</button>
             </div>
         </div>
         <div id="middlePanel">
             <div id="rooms">
-                <select id="roomList" size="20">
-
+                <select id="roomList" size="20" onChange="roomHighlighted(this.options[this.selectedIndex])">
                 </select>
+                <div id="participation">
+                    <button onclick="join()">Join</button>
+                </div>
             </div>
             <div id="log">
             </div>
         </div>
         <div id="bottomPanel">
             <div id="talk">
-                <input type="text" id="message" size="120" autofocus />
+                <input type="text" id="messageInput" size="120" autofocus />
                 <button onclick="send()">Send</button>
             </div>
         </div>
