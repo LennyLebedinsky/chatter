@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -17,8 +18,8 @@ var upgrader = websocket.Upgrader{
 }
 
 func (g *Gateway) serveUserWs(w http.ResponseWriter, r *http.Request) {
-	username := mux.Vars(r)["username"]
-	user, err := g.repo.Register(username)
+	userName := strings.ToLower(mux.Vars(r)["username"])
+	user, err := g.repo.Register(userName)
 	if err != nil {
 		g.logError(err)
 		http.Error(w, err.Error(), http.StatusForbidden)

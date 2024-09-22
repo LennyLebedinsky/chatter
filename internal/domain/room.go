@@ -6,5 +6,5 @@ type Room struct {
 }
 
 var defaultRoom = &Room{
-	Name: "General",
+	Name: "general",
 }

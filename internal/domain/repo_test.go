@@ -88,10 +88,10 @@ func TestInMemoryRepository_Register(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &InMemoryRepository{
-				users:         tt.fields.users,
-				rooms:         tt.fields.rooms,
-				userInRooms:   tt.fields.userInRooms,
-				roomWithUsers: tt.fields.roomWithUsers,
+				users:       tt.fields.users,
+				rooms:       tt.fields.rooms,
+				userToRooms: tt.fields.userInRooms,
+				roomToUsers: tt.fields.roomWithUsers,
 			}
 			got, err := r.Register(tt.args.userName)
 			if (err != nil) != tt.wantErr {
@@ -153,10 +153,10 @@ func TestInMemoryRepository_Unregister(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &InMemoryRepository{
-				users:         tt.fields.users,
-				rooms:         tt.fields.rooms,
-				userInRooms:   tt.fields.userInRooms,
-				roomWithUsers: tt.fields.roomWithUsers,
+				users:       tt.fields.users,
+				rooms:       tt.fields.rooms,
+				userToRooms: tt.fields.userInRooms,
+				roomToUsers: tt.fields.roomWithUsers,
 			}
 			if err := r.Unregister(tt.args.userName); (err != nil) != tt.wantErr {
 				t.Errorf("InMemoryRepository.Unregister() error = %v, wantErr %v", err, tt.wantErr)
@@ -187,10 +187,10 @@ func TestInMemoryRepository_Join(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &InMemoryRepository{
-				users:         tt.fields.users,
-				rooms:         tt.fields.rooms,
-				userInRooms:   tt.fields.userInRooms,
-				roomWithUsers: tt.fields.roomWithUsers,
+				users:       tt.fields.users,
+				rooms:       tt.fields.rooms,
+				userToRooms: tt.fields.userInRooms,
+				roomToUsers: tt.fields.roomWithUsers,
 			}
 			if err := r.Join(tt.args.userName, tt.args.roomName); (err != nil) != tt.wantErr {
 				t.Errorf("InMemoryRepository.Join() error = %v, wantErr %v", err, tt.wantErr)
