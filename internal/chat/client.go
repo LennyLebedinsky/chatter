@@ -5,6 +5,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/lennylebedinsky/chatter/internal/domain"
+	"github.com/lennylebedinsky/chatter/internal/message"
 )
 
 type UserSocket struct {
@@ -13,7 +14,7 @@ type UserSocket struct {
 
 	broadcaster *Broadcaster
 
-	outbound chan *Message
+	outbound chan *message.Message
 
 	logger *log.Logger
 }
@@ -27,7 +28,7 @@ func NewUserSocket(
 		user:        user,
 		conn:        conn,
 		broadcaster: broadcaster,
-		outbound:    make(chan *Message),
+		outbound:    make(chan *message.Message),
 		logger:      logger,
 	}
 }
@@ -39,8 +40,8 @@ func (s *UserSocket) ReadLoop() {
 		s.conn.Close()
 	}()
 	for {
-		message := &Message{}
-		err := s.conn.ReadJSON(message)
+		msg := &message.Message{}
+		err := s.conn.ReadJSON(msg)
 		if err != nil {
 			if closeErr, ok := err.(*websocket.CloseError); ok {
 				s.logger.Printf("Connection closed for user %s: %v\n", s.user.Name, closeErr)
@@ -49,8 +50,8 @@ func (s *UserSocket) ReadLoop() {
 				s.logger.Printf("Error reading message for user %s: %v\n", s.user.Name, err)
 			}
 		}
-		s.logger.Printf("Received message: %v\n", message)
-		s.broadcaster.message <- message
+		s.logger.Printf("Received message: %v\n", msg)
+		s.broadcaster.message <- msg
 	}
 }
 

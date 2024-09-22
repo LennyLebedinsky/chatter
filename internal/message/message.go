@@ -1,4 +1,4 @@
-package chat
+package message
 
 import "time"
 
@@ -8,15 +8,4 @@ type Message struct {
 	IsNotification bool      `json:"isNotification"`
 	Value          string    `json:"value"`
 	ServerTime     time.Time `json:"serverTime"`
-}
-
-const CreateRoomEvent = "create-room"
-
-func NewNotification(user, room, event string) *Message {
-	return &Message{
-		User:           user,
-		Room:           room,
-		Value:          event,
-		IsNotification: true,
-	}
 }

@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/lennylebedinsky/chatter/internal/chat"
 	"github.com/lennylebedinsky/chatter/internal/domain"
+	"github.com/lennylebedinsky/chatter/internal/message"
 )
 
 func (g *Gateway) handleListRooms(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +64,26 @@ func (g *Gateway) handleListRoomsWithUser(w http.ResponseWriter, r *http.Request
 	}
 }
 
+func (g *Gateway) handleGetMessagesForRoom(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	roomName := strings.ToLower(mux.Vars(r)["roomname"])
+	messages, err := g.messageStore.GetMessages(r.Context(), roomName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = encode(w, r, http.StatusOK, messages)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (g *Gateway) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if r.Method == http.MethodOptions {
@@ -96,5 +116,5 @@ func (g *Gateway) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 	g.logger.Printf("User %s created and joined room %s.\n", userName, roomName)
 
 	// Notify other clients about room creation so that they could update room list.
-	g.broadcaster.Message() <- chat.NewNotification(userName, roomName, chat.CreateRoomEvent)
+	g.broadcaster.Message() <- message.NewNotification(userName, roomName, message.CreateRoomEvent)
 }

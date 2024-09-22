@@ -9,6 +9,7 @@ import (
 func (g *Gateway) registerRoutes() {
 	g.router.HandleFunc("/rooms", g.handleListRooms).Methods(http.MethodGet, http.MethodOptions)
 	g.router.HandleFunc("/rooms/{username}", g.handleListRoomsWithUser).Methods(http.MethodGet, http.MethodOptions)
+	g.router.HandleFunc("/room/{roomname}/messages", g.handleGetMessagesForRoom).Methods(http.MethodGet, http.MethodOptions)
 	g.router.HandleFunc("/join-room/{roomname}/{username}", g.handleJoinRoom).Methods(http.MethodPost, http.MethodOptions)
 	g.router.HandleFunc("/create-room/{roomname}/{username}", g.handleCreateRoom).Methods(http.MethodPost, http.MethodOptions)
 	g.router.HandleFunc("/ws/{username}", g.serveUserWs)
