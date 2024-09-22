@@ -35,7 +35,7 @@ func (g *Gateway) handleListRoomsWithUser(w http.ResponseWriter, r *http.Request
 	}
 
 	userName := strings.ToLower(mux.Vars(r)["username"])
-	roomsParticipation, err := g.repo.ListRoomsParticipation()
+	roomsParticipation, err := g.repo.ListParticipantsForAllRooms()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

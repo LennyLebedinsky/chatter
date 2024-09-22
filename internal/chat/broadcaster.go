@@ -1,7 +1,9 @@
 package chat
 
 import (
+	"errors"
 	"log"
+	"time"
 
 	"github.com/lennylebedinsky/chatter/internal/domain"
 )
@@ -53,13 +55,21 @@ func (b *Broadcaster) Start() {
 				}
 			}
 		case message := <-b.message:
-			b.logger.Printf("Broadcasting message %v", message)
-			for socket := range b.sockets {
-				select {
-				case socket.outbound <- message:
-				default:
-					close(socket.outbound)
-					delete(b.sockets, socket)
+			if err := b.validate(message); err != nil {
+				b.logger.Printf("Message is not accepted by broadcaster: %v\n", err)
+			} else {
+				b.accept(message)
+				b.logger.Printf("Broadcasting message %v", message)
+				destination, err := b.dispatch(message)
+				if err != nil {
+					for _, socket := range destination {
+						select {
+						case socket.outbound <- message:
+						default:
+							close(socket.outbound)
+							delete(b.sockets, socket)
+						}
+					}
 				}
 			}
 			/*
@@ -75,4 +85,48 @@ func (b *Broadcaster) Start() {
 
 func (b *Broadcaster) Register() chan *UserSocket {
 	return b.register
+}
+
+// validate checks if message is considered valid for broadcasting.
+func (b *Broadcaster) validate(message *Message) error {
+	if message.User == "" {
+		return errors.New("message does not have an author")
+	}
+
+	if message.Room == "" {
+		return errors.New("message does not have room destination")
+	}
+
+	return nil
+}
+
+// accept marks that message is allowed into system.
+func (b *Broadcaster) accept(message *Message) {
+	// Setup server timestamp.
+	message.ServerTime = time.Now()
+	// TODO: assign unique ID, possibly logical clock.
+	// TODO: add message to persistent storage.
+}
+
+// dispatch determines only those users to whom message will be broadcasted.
+func (b *Broadcaster) dispatch(message *Message) ([]*UserSocket, error) {
+	sockets := []*UserSocket{}
+
+	// Main rule for this chat: message is broadcasted only to users who joined the same room.
+	usersInSameRoom, err := b.repo.ListParticipants(message.Room)
+	if err != nil {
+		return nil, err
+	}
+	index := map[*domain.User]bool{}
+	for _, user := range usersInSameRoom {
+		index[user] = true
+	}
+
+	// Dispatch message to active users participating in the same room.
+	for socket := range b.sockets {
+		if _, ok := index[socket.user]; ok {
+			sockets = append(sockets, socket)
+		}
+	}
+	return sockets, nil
 }
