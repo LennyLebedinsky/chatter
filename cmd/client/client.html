@@ -27,9 +27,22 @@
             var item = document.createElement("div");
             item.innerHTML = text;
             if (italic) {
-                item.innerHTML = "<i>" + item.innerHTML + "</i>"
+                item.innerHTML = "<i>" + item.innerHTML + "</i>";
             }
             return item;
+        }
+
+        function wrapMessage(messageObject) {
+            var text = `<b>${messageObject.user}:</b> ${messageObject.value}`;
+            return wrapTextWithDiv(text, messageObject.isNotification);
+        }
+
+        function wrapMessages(messageObjects) {
+            var result = [];
+            for (var i = 0; i < messageObjects.length; i++) {
+                result.push(wrapMessage(messageObjects[i]));
+            }
+            return result;
         }
 
         function disableControls(controlId, disabled) {
@@ -44,6 +57,17 @@
             var log = document.getElementById("log");
             var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
             log.appendChild(item);
+            if (doScroll) {
+                log.scrollTop = log.scrollHeight - log.clientHeight;
+            }
+        }
+
+        function appendLogMany(items) {
+            var log = document.getElementById("log");
+            var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+            for (var i = 0; i < items.length; i++) {
+                log.appendChild(items[i]);
+            }
             if (doScroll) {
                 log.scrollTop = log.scrollHeight - log.clientHeight;
             }
@@ -87,6 +111,11 @@
             }
             currentRoom = option.value.toLowerCase();
             isRoomJoined = option.text.indexOf(joinedMarker) >= 0;
+            if (isRoomJoined) {
+                getMessages()
+                    .then(messages => wrapMessages(messages))
+                    .then(divs => appendLogMany(divs));
+            }
         }
 
 
@@ -175,8 +204,7 @@
                 return
             }
 
-            var text = `<b>${messageObject.user}:</b> ${messageObject.value}`;
-            appendLog(wrapTextWithDiv(text, message.isNotification));
+            appendLog(wrapMessage(messageObject));
         }
 
         function joinRoom() {
@@ -206,6 +234,12 @@
             var response = await fetch("http://" + serverAddress + "/rooms/" + currentUser);
             var rooms = await response.json();
             return rooms;
+        }
+
+        async function getMessages() {
+            var response = await fetch("http://" + serverAddress + "/room/" + currentRoom + "/messages");
+            var messages = await response.json();
+            return messages;
         }
 
         async function postJoinRoom() {

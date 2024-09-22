@@ -12,6 +12,7 @@ import (
 
 	"github.com/lennylebedinsky/chatter/internal/domain"
 	"github.com/lennylebedinsky/chatter/internal/gateway"
+	"github.com/lennylebedinsky/chatter/internal/message"
 )
 
 type config struct {
@@ -25,8 +26,11 @@ func main() {
 		Port: "8080",
 	}
 	logger := log.Default()
-	repo := domain.NewInMemoryRepository()
-	gw := gateway.New(repo, logger)
+
+	gw := gateway.New(
+		domain.NewInMemoryRepository(),
+		message.NewInMemoryStore(),
+		logger)
 
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort(config.Host, config.Port),
