@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/lennylebedinsky/chatter/internal/chat"
 	"github.com/lennylebedinsky/chatter/internal/domain"
 )
 
@@ -71,10 +72,29 @@ func (g *Gateway) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 
 	roomName := strings.ToLower(mux.Vars(r)["roomname"])
 	userName := strings.ToLower(mux.Vars(r)["username"])
-	if err := g.repo.Join(userName, roomName); err != nil {
+	if err := g.repo.JoinRoom(userName, roomName); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	g.logger.Printf("User %s joined room %s.\n", userName, roomName)
+}
+
+func (g *Gateway) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	roomName := strings.ToLower(mux.Vars(r)["roomname"])
+	userName := strings.ToLower(mux.Vars(r)["username"])
+	if _, err := g.repo.CreateRoom(roomName, userName); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	g.logger.Printf("User %s created and joined room %s.\n", userName, roomName)
+
+	// Notify other clients about room creation so that they could update room list.
+	g.broadcaster.Message() <- chat.NewNotification(userName, roomName, chat.CreateRoomEvent)
 }
