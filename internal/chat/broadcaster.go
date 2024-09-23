@@ -70,6 +70,7 @@ func (b *Broadcaster) Start(ctx context.Context) {
 						select {
 						case socket.outbound <- msg:
 						default:
+							// If send buffer is full, assume client is disconnected or hanged.
 							close(socket.outbound)
 							delete(b.sockets, socket)
 						}

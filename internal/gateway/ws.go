@@ -13,6 +13,7 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	// NB: Just for example allowing local clients to reach server, should take precaution in real environment.
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
