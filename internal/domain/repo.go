@@ -67,6 +67,20 @@ func (r *InMemoryRepository) CreateUser(ctx context.Context, userName string) (*
 	return newUser, nil
 }
 
+func (r *InMemoryRepository) FindUser(_ context.Context, userName string) *User {
+	if user, ok := r.users[userName]; ok {
+		return user
+	}
+	return nil
+}
+
+func (r *InMemoryRepository) FindRoom(_ context.Context, roomName string) *Room {
+	if room, ok := r.rooms[roomName]; ok {
+		return room
+	}
+	return nil
+}
+
 func (r *InMemoryRepository) JoinRoom(ctx context.Context, userName, roomName string) error {
 	user := r.FindUser(ctx, userName)
 	if user == nil {
@@ -194,18 +208,4 @@ func (r *InMemoryRepository) ListParticipantsForAllRooms(_ context.Context) ([]*
 		i++
 	}
 	return roomsParticipation, nil
-}
-
-func (r *InMemoryRepository) FindUser(_ context.Context, userName string) *User {
-	if user, ok := r.users[userName]; ok {
-		return user
-	}
-	return nil
-}
-
-func (r *InMemoryRepository) FindRoom(_ context.Context, roomName string) *Room {
-	if room, ok := r.rooms[roomName]; ok {
-		return room
-	}
-	return nil
 }
