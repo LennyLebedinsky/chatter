@@ -106,9 +106,10 @@
         }
 
         function roomHighlighted(option) {
-            if (currentRoom != option.value.toLowerCase()) {
-                clearLog();
+            if (currentRoom == option.value.toLowerCase()) {
+                return;
             }
+            clearLog();
             currentRoom = option.value.toLowerCase();
             isRoomJoined = option.text.indexOf(joinedMarker) >= 0;
             if (isRoomJoined) {
@@ -204,7 +205,9 @@
                 return
             }
 
-            appendLog(wrapMessage(messageObject));
+            if (messageObject.room == currentRoom) {
+                appendLog(wrapMessage(messageObject));
+            }
         }
 
         function joinRoom() {

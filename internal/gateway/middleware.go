@@ -33,6 +33,7 @@ func (w *statusCodeWriter) WriteHeader(code int) {
 }
 
 // Hijack is implemented to allow clients reach server from different origin.
+// NB: Just for example allowing local clients to reach server, should take precaution in real environment.
 func (w *statusCodeWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	h, ok := w.ResponseWriter.(http.Hijacker)
 	if !ok {
