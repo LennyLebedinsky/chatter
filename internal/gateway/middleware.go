@@ -8,16 +8,6 @@ import (
 	"time"
 )
 
-func (g *Gateway) broadcasterStartMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Lazy starting broadcaster loop when the first request arrives.
-		if g.broadcasterStarted.CompareAndSwap(false, true) {
-			go g.broadcaster.Start(r.Context())
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
@@ -42,6 +32,7 @@ func (w *statusCodeWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
+// Hijack is implemented to allow clients reach server from different origin.
 func (w *statusCodeWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	h, ok := w.ResponseWriter.(http.Hijacker)
 	if !ok {

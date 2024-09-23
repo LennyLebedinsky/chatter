@@ -33,7 +33,9 @@ func NewUserSocket(
 	}
 }
 
-// Supposed to be run as goroutine.
+// ReadLoop listens to messages coming from client's side of Websocket connection
+// and redirects them to broadcaster.
+// It is supposed to run as goroutine, one read loop per client.
 func (s *UserSocket) ReadLoop() {
 	defer func() {
 		s.broadcaster.unregister <- s
@@ -43,6 +45,7 @@ func (s *UserSocket) ReadLoop() {
 		msg := &message.Message{}
 		err := s.conn.ReadJSON(msg)
 		if err != nil {
+			// If connection had been closed from client's side, break the loop.
 			if closeErr, ok := err.(*websocket.CloseError); ok {
 				s.logger.Printf("Connection closed for user %s: %v\n", s.user.Name, closeErr)
 				return
@@ -55,6 +58,9 @@ func (s *UserSocket) ReadLoop() {
 	}
 }
 
+// Write listens to messages coming from broadcaster and
+// redirects them  client's side of Websocket connection.
+// It is supposed to run as goroutine, one read loop per client.
 func (s *UserSocket) WriteLoop() {
 	defer func() {
 		s.conn.Close()
@@ -62,12 +68,14 @@ func (s *UserSocket) WriteLoop() {
 	for {
 		select {
 		case message, ok := <-s.outbound:
+			// If broadcaster closed channel from its side, initiate closing handshake.
 			if !ok {
 				s.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 			err := s.conn.WriteJSON(message)
 			if err != nil {
+				// If connection had been closed from client's side, break the loop.
 				if closeErr, ok := err.(*websocket.CloseError); ok {
 					s.logger.Printf("Connection closed for user %s: %v\n", s.user.Name, closeErr)
 					return

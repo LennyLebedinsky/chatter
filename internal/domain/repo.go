@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"sync"
 )
 
 type RoomParticipation struct {
@@ -11,6 +12,8 @@ type RoomParticipation struct {
 	Participants []*User
 }
 
+// Repository stores and retrieves relations between users and rooms.
+// TODO: implement as a persistent storage, preferrably Redis cache plus SQL server on background.
 type Repository interface {
 	CreateUser(ctx context.Context, userName string) (*User, error)
 	FindUser(ctx context.Context, userName string) *User
@@ -31,6 +34,8 @@ type InMemoryRepository struct {
 
 	userToRooms map[*User][]*Room
 	roomToUsers map[*Room][]*User
+
+	mu sync.RWMutex
 }
 
 func NewInMemoryRepository() Repository {
@@ -55,7 +60,9 @@ func (r *InMemoryRepository) CreateUser(ctx context.Context, userName string) (*
 	newUser := &User{
 		Name: userName,
 	}
+	r.mu.Lock()
 	r.users[userName] = newUser
+	r.mu.Unlock()
 
 	return newUser, nil
 }
@@ -71,6 +78,7 @@ func (r *InMemoryRepository) JoinRoom(ctx context.Context, userName, roomName st
 	}
 
 	// Update indexes.
+	r.mu.Lock()
 	if _, ok := r.userToRooms[user]; ok {
 		if slices.Index(r.userToRooms[user], room) < 0 {
 			r.userToRooms[user] = append(r.userToRooms[user], room)
@@ -86,6 +94,7 @@ func (r *InMemoryRepository) JoinRoom(ctx context.Context, userName, roomName st
 	} else {
 		r.roomToUsers[room] = []*User{user}
 	}
+	r.mu.Unlock()
 
 	return nil
 }
@@ -101,6 +110,7 @@ func (r *InMemoryRepository) LeaveRoom(ctx context.Context, userName, roomName s
 	}
 
 	// Update indexes.
+	r.mu.Lock()
 	if _, ok := r.userToRooms[user]; ok {
 		index := slices.Index(r.userToRooms[user], room)
 		if index >= 0 {
@@ -114,6 +124,7 @@ func (r *InMemoryRepository) LeaveRoom(ctx context.Context, userName, roomName s
 			r.roomToUsers[room] = slices.Delete(r.roomToUsers[room], index, index+1)
 		}
 	}
+	r.mu.Unlock()
 
 	return nil
 }
@@ -132,7 +143,10 @@ func (r *InMemoryRepository) CreateRoom(ctx context.Context, roomName, creatorUs
 		Name:    roomName,
 		Creator: creatorUser,
 	}
+
+	r.mu.Lock()
 	r.rooms[roomName] = newRoom
+	r.mu.Unlock()
 
 	// User who is creating room automatically joins it.
 	if err := r.JoinRoom(ctx, creatorUserName, roomName); err != nil {
@@ -143,6 +157,9 @@ func (r *InMemoryRepository) CreateRoom(ctx context.Context, roomName, creatorUs
 }
 
 func (r *InMemoryRepository) ListRooms(_ context.Context) ([]*Room, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	rooms := make([]*Room, len(r.rooms))
 	i := 0
 	for _, room := range r.rooms {
@@ -153,6 +170,9 @@ func (r *InMemoryRepository) ListRooms(_ context.Context) ([]*Room, error) {
 }
 
 func (r *InMemoryRepository) ListParticipants(ctx context.Context, roomName string) ([]*User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	room := r.FindRoom(ctx, roomName)
 	if room == nil {
 		return nil, errors.New("no room with this name exists")
@@ -161,6 +181,9 @@ func (r *InMemoryRepository) ListParticipants(ctx context.Context, roomName stri
 }
 
 func (r *InMemoryRepository) ListParticipantsForAllRooms(_ context.Context) ([]*RoomParticipation, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	roomsParticipation := make([]*RoomParticipation, len(r.rooms))
 	i := 0
 	for _, room := range r.rooms {
