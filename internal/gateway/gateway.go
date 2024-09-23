@@ -11,6 +11,7 @@ import (
 	"github.com/lennylebedinsky/chatter/internal/message"
 )
 
+// Gateway orchestrates HTTP and Websocket communications and data persistence.
 type Gateway struct {
 	router             *mux.Router
 	repo               domain.Repository

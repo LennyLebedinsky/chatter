@@ -37,7 +37,9 @@ func NewBroadcaster(repo domain.Repository, messageStore message.Store, logger *
 
 }
 
-// Supposed to be run as goroutine.
+// Start listens to messages coming from user sockets and dispatches them.
+// It is supposed to run as goroutine.
+// Only one broadcaster runs for the whole service.
 func (b *Broadcaster) Start(ctx context.Context) {
 	defer func() {
 		b.logger.Println("Message broadcaster stopped.")

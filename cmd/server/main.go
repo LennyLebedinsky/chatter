@@ -44,6 +44,7 @@ func main() {
 		}
 	}()
 
+	// Start gateway's broadcaster to support message exchange.
 	gw.StartBroadcaster(context.Background())
 
 	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 5 seconds.

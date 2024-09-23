@@ -18,6 +18,8 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// serveUserWs initiates Websocket upgrade when user logs in to chat server.
+// Socket is registered with the broadcaster, and read and write loops are started.
 func (g *Gateway) serveUserWs(w http.ResponseWriter, r *http.Request) {
 	userName := strings.ToLower(mux.Vars(r)["username"])
 	user := g.repo.FindUser(r.Context(), userName)
